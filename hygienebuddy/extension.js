@@ -7,13 +7,16 @@ let userStyleGuide = "";  // Variable to store the user-provided style guide
 function activate(context) {
     console.log('Activating Hygiene Buddy extension'); // Debug log
 
+    vscode.window.showInformationMessage('Hello, this is your information message!'); 
+
     // Register the command to show the floating buddy
-    const showBuddyCommand = vscode.commands.registerCommand('hygienebuddy.showBuddy', () => { // Updated command name
+    const showBuddyCommand = vscode.commands.registerCommand('hygienebuddyWorks.showBuddy', () => { // Updated command name
+        vscode.window.showInformationMessage('Hygiene Buddy comman Executed!')
         // Create a webview panel
         const panel = vscode.window.createWebviewPanel(
             'floatingBuddy',
             'Hygiene Buddy',
-            vscode.ViewColumn.Two,
+            vscode.ViewColumn.One,
             {
                 enableScripts: true,
                 localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'media'))]
@@ -45,14 +48,18 @@ function activate(context) {
         });
     });
 
+
+    // Push the commands to the context subscriptions
     context.subscriptions.push(showBuddyCommand);
 }
 
 // Function to generate the HTML content for the floating buddy
 function getBuddyWebviewContent(webview, extensionPath) {
-    const buddyImageUri = webview.asWebviewUri(vscode.Uri.file(
-        path.join(extensionPath, 'media', 'buddy.png')
-    ));
+    // Construct the file path to the buddy.png image
+    const buddyImagePath = path.join(extensionPath, 'media', 'buddy.png');
+    
+    // Generate a webview-compatible URI for the image
+    const buddyImageUri = webview.asWebviewUri(vscode.Uri.file(buddyImagePath));
 
     return `<!DOCTYPE html>
     <html lang="en">
@@ -135,6 +142,7 @@ function getBuddyWebviewContent(webview, extensionPath) {
     </html>`;
 }
 
+
 // Function to analyze code using the Google API
 async function analyzeCode(webview, codeSnippet) {
     const apiKey = vscode.workspace.getConfiguration("hygienebuddy").get("googleApiKey");
@@ -162,5 +170,16 @@ async function analyzeCode(webview, codeSnippet) {
         webview.postMessage({ feedback: "Error analyzing code. Please check the console for details." });
     }
 }
+vscode.window.showInformationMessage(
+    'Would you like to proceed?',
+    'Yes', // Button label 1
+    'No'   // Button label 2
+).then(selection => {
+    if (selection === 'Yes') {
+        vscode.window.showInformationMessage('You chose to proceed!');
+    } else if (selection === 'No') {
+        vscode.window.showInformationMessage('You chose not to proceed.');
+    }
+});
 
 exports.activate = activate;
