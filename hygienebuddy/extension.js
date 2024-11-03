@@ -5,8 +5,10 @@ const axios = require('axios'); // For API requests
 let userStyleGuide = "";  // Variable to store the user-provided style guide
 
 function activate(context) {
+    console.log('Activating Hygiene Buddy extension'); // Debug log
+
     // Register the command to show the floating buddy
-    const showBuddyCommand = vscode.commands.registerCommand('hygiene-buddy.showBuddy', () => {
+    const showBuddyCommand = vscode.commands.registerCommand('hygienebuddy.showBuddy', () => { // Updated command name
         // Create a webview panel
         const panel = vscode.window.createWebviewPanel(
             'floatingBuddy',
@@ -139,6 +141,7 @@ async function analyzeCode(webview, codeSnippet) {
 
     if (!apiKey) {
         console.error("Google API key is missing. Set it in the extension settings.");
+        webview.postMessage({ feedback: "Google API key is missing. Please set it in the extension settings." });
         return;
     }
 
