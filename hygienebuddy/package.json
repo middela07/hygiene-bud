@@ -1,10 +1,10 @@
 {
   "name": "hygienebuddy",
   "displayName": "Hygiene Buddy",
-  "description": "",
+  "description": "A VSCode extension that helps maintain code hygiene by providing analysis and style guide suggestions.",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.95.0"
+    "vscode": "^1.93.0"  
   },
   "categories": [
     "Other"
@@ -16,14 +16,24 @@
   "contributes": {
     "commands": [
       {
-        "command": "hygienebuddy.helloWorld",
-        "title": "Hello World"
-      },
-      {
         "command": "hygienebuddy.showBuddy",
         "title": "Show Hygiene Buddy"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "hygienebuddy.googleApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your Google API Key for code analysis"
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/hygienebuddy.git"
   },
   "scripts": {
     "lint": "eslint .",
@@ -31,7 +41,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.95.0",
+    "@types/vscode": "^1.93.0",
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
     "eslint": "^9.13.0",

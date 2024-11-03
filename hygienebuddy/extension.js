@@ -1,32 +1,53 @@
 const vscode = require('vscode');
 const path = require('path');
+const axios = require('axios'); // For API requests
+
+let userStyleGuide = "";  // Variable to store the user-provided style guide
 
 function activate(context) {
     // Register the command to show the floating buddy
-    context.subscriptions.push(
-        vscode.commands.registerCommand('hygiene-buddy.showBuddy', () => {
-            // Create a webview panel
-            const panel = vscode.window.createWebviewPanel(
-                'floatingBuddy',   // Internal ID
-                'Hygiene Buddy',    // Title shown to users
-                vscode.ViewColumn.Two, // Open beside the code
-                {
-                    enableScripts: true,       // Enable JavaScript
-                    localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'media'))] // Allow access to media folder
-                }
-            );
+    const showBuddyCommand = vscode.commands.registerCommand('hygiene-buddy.showBuddy', () => {
+        // Create a webview panel
+        const panel = vscode.window.createWebviewPanel(
+            'floatingBuddy',
+            'Hygiene Buddy',
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true,
+                localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'media'))]
+            }
+        );
 
-            // Set the HTML content of the webview
-            panel.webview.html = getBuddyWebviewContent(panel.webview, context.extensionPath);
+        // Set the HTML content of the webview
+        panel.webview.html = getBuddyWebviewContent(panel.webview, context.extensionPath);
 
-            // Optional: Make it less obtrusive by setting size or transparency if needed.
-            panel.webview.options = { retainContextWhenHidden: true };
-        })
-    );
+        // Handle messages from the webview
+        panel.webview.onDidReceiveMessage(message => {
+            if (message.command === 'saveStyleGuide') {
+                userStyleGuide = message.styleGuide;  // Save the style guide in memory
+                vscode.window.showInformationMessage('Style guide updated!');
+            }
+        });
+
+        // Listen to text document changes to analyze code in real-time
+        const subscription = vscode.workspace.onDidChangeTextDocument(event => {
+            if (event.document === vscode.window.activeTextEditor.document) {
+                const codeSnippet = event.document.getText();
+                analyzeCode(panel.webview, codeSnippet);
+            }
+        });
+
+        // Clean up event listeners when the panel is closed
+        panel.onDidDispose(() => {
+            subscription.dispose();
+        });
+    });
+
+    context.subscriptions.push(showBuddyCommand);
 }
 
+// Function to generate the HTML content for the floating buddy
 function getBuddyWebviewContent(webview, extensionPath) {
-    // Get the URI to load the image
     const buddyImageUri = webview.asWebviewUri(vscode.Uri.file(
         path.join(extensionPath, 'media', 'buddy.png')
     ));
@@ -41,27 +62,45 @@ function getBuddyWebviewContent(webview, extensionPath) {
             body {
                 margin: 0;
                 padding: 0;
-                background-color: rgba(255, 255, 255, 0); /* Transparent background */
+                background-color: rgba(255, 255, 255, 0);
                 overflow: hidden;
+                font-family: Arial, sans-serif;
             }
             #buddy {
-                width: 100px; /* Adjust size as needed */
+                width: 100px;
                 height: auto;
                 position: absolute;
                 cursor: move;
                 top: 20px;
                 left: 20px;
             }
+            #styleGuideInput {
+                width: 90%;
+                height: 100px;
+                margin-top: 20px;
+                font-family: Arial, sans-serif;
+            }
+            #saveButton {
+                margin-top: 10px;
+                padding: 5px 10px;
+            }
+            #feedback {
+                margin-top: 20px;
+            }
         </style>
     </head>
     <body>
         <img id="buddy" src="${buddyImageUri}" alt="Hygiene Buddy" />
-        
+        <textarea id="styleGuideInput" placeholder="Enter your style guide here..."></textarea>
+        <button id="saveButton">Save Style Guide</button>
+        <div id="feedback"></div>
+
         <script>
-            // JavaScript to make the buddy draggable
+            const vscode = acquireVsCodeApi();
             const buddy = document.getElementById('buddy');
             let offsetX, offsetY;
 
+            // Dragging functionality for buddy image
             buddy.addEventListener('mousedown', (e) => {
                 offsetX = e.clientX - buddy.offsetLeft;
                 offsetY = e.clientY - buddy.offsetTop;
@@ -78,9 +117,47 @@ function getBuddyWebviewContent(webview, extensionPath) {
                 document.removeEventListener('mousemove', moveBuddy);
                 document.removeEventListener('mouseup', stopMovingBuddy);
             }
+
+            // Handle style guide saving
+            document.getElementById('saveButton').addEventListener('click', () => {
+                const styleGuide = document.getElementById('styleGuideInput').value;
+                vscode.postMessage({ command: 'saveStyleGuide', styleGuide });
+            });
+
+            // Display feedback from the extension
+            window.addEventListener('message', event => {
+                document.getElementById('feedback').innerHTML = event.data.feedback || '';
+            });
         </script>
     </body>
     </html>`;
+}
+
+// Function to analyze code using the Google API
+async function analyzeCode(webview, codeSnippet) {
+    const apiKey = vscode.workspace.getConfiguration("hygienebuddy").get("googleApiKey");
+
+    if (!apiKey) {
+        console.error("Google API key is missing. Set it in the extension settings.");
+        return;
+    }
+
+    try {
+        const prompt = `Analyze this code:\n${codeSnippet}\n\nBased on the following style guide:\n${userStyleGuide}\nProvide suggestions for improvement.`;
+        const response = await axios.post('https://api.generativeai.com/generate', {
+            prompt: prompt,
+            model: "gemini-1.5-flash"
+        }, {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+
+        // Send feedback to the webview
+        const feedback = response.data.text || "No suggestions.";
+        webview.postMessage({ feedback });
+    } catch (error) {
+        console.error('Error analyzing code:', error);
+        webview.postMessage({ feedback: "Error analyzing code. Please check the console for details." });
+    }
 }
 
 exports.activate = activate;
