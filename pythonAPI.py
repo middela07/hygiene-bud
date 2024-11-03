@@ -1,25 +1,48 @@
+import google.generativeai as genai
 import os
-import requests
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Configure the generative AI client with your API key
+genai.configure(api_key=os.environ["API_KEY"])
 
-# Get the API key from the environment variable
-api_key = os.getenv('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')
+# Initialize the generative model
+model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Define the endpoint and headers
-url = 'https://api.example.com/endpoint'  # Replace with your API endpoint
-headers = {
-    'Authorization': f'Bearer {api_key}',  # Include the API key in the Authorization header
-    'Content-Type': 'application/json'  # Optional: specify content type if needed
-}
+# Prompt the user for their coding style guide input directly
+print("Please paste your coding style guide below. Enter '-done' to finish:")
+style_guide = ""
+while True:
+    line = input()
+    if line == "-done":
+        break
+    style_guide += line + "\n"
 
-# Make the API request
-response = requests.get(url, headers=headers)  # Use requests.post() for POST requests
+print("\nYour style guide has been stored successfully!")
+# Create a loop for code snippet analysis
+while True:
+    print("Enter the code you want analyzed. Enter '-done' to finish:")
+    code_snippet = ""
+    
+    while True:
+        line = input()
+        if line == "-done":
+            break
+        code_snippet += line + "\n"
 
-# Check the response
-if response.status_code == 200:
-    print(response.json())  # Print the response JSON
-else:
-    print(f'Error: {response.status_code}, {response.text}')
+    # Check if the code snippet is not empty before calling the model
+    if code_snippet:
+        prompt = (
+            f"Act like a friendly, cute Code Hygiene assistant. Analyze this code:\n"
+            f"{code_snippet}\n\nBased on the following style guide:\n"
+            f"{style_guide}\n\nGive simple one-line suggestions that give the line number of the code style error and how to fix it"
+        )
+        response = model.generate_content(prompt)
+        print("\nGenerated Feedback:")
+        print(response.text)
+    else:
+        print("Error: The code snippet cannot be empty. Please provide valid input.")
+
+    # Ask the user if they want to analyze another code snippet
+    continue_prompt = input("\nDo you want to analyze another code snippet? (yes/no): ").strip().lower()
+    if continue_prompt != 'yes':
+        print("Exiting the program. Goodbye!")
+        break
